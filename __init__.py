@@ -143,11 +143,11 @@ class BaseLLM():
 if __name__ == "__main__":
     
     llm = BaseLLM()
-    llm.debug_test()
-    #while True:
-        #user_input = input()
-        #llm.web_reader.jumpto('https://mail.google.com/mail/&ogbl')
-        #llm.generate_prompt(user_input)
+    #llm.debug_test()
+    while True:
+        user_input = input()
+        llm.web_reader.jumpto('https://mail.google.com/mail/&ogbl')
+        llm.generate_prompt(user_input)
 
 
 
