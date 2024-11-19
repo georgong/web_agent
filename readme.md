@@ -28,7 +28,11 @@ This is a project for LLM Web Agent
 ### <h3><p id = prerequisites>Prerequisites</p></h3>
 
 #### Mac/Windows/Linux
-#### ollama
+#### ollama (we'll add more model and openai support in the future, or you can edit in __init__.py)
+##### download ollama in https://ollama.com/download
+```bash
+ollama run qwen2.5:3b
+```
 #### conda
 
 
@@ -38,8 +42,8 @@ Provide step-by-step instructions on how to install the project.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/project-name.git
-   cd project-name
+   git clone https://github.com/georgong/web_agent.git
+   cd web_gent
    ```
 2. create conda environment
     ```bash
@@ -47,8 +51,14 @@ Provide step-by-step instructions on how to install the project.
     conda activate webagent
     ```
 3. install necessary package
-    ```python
+    ```bash
+    pip install -r requirements.txt    
     ```
+### <h3><p id = running-the-application>Running the Application</p></h3>
+In the web_agent directory
+```bash
+python __init__.py
+```
 
 ## <h2><p id = future-modifications>Future Modifications</p></h2>
 
