@@ -15,6 +15,7 @@ import numpy as np
 #import numpy as np
 #from .annotation import image_read,annotate_text_centers
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import MoveTargetOutOfBoundsException, WebDriverException
 
 
 # 假设已经找到需要点击的元素
@@ -81,6 +82,7 @@ class web_reader():
         # 等待设定的加载时间（2 秒）
         time.sleep(1)
         print("reading...")
+        self.current_url = self.driver.current_url
         # 获取页面的 HTML 快照
         page_source = self.driver.page_source
         annotations = None#self.annotation(visualize)
@@ -99,8 +101,8 @@ class web_reader():
                     selenium_element = self.driver.find_element(By.XPATH, xpath)
                     location = selenium_element.location
                     size = selenium_element.size
-                    print(location)
-                    print(size)
+                    #print(location)
+                    #print(size)
                 except (NoSuchElementException, StaleElementReferenceException):
                     # 如果定位失败，location 和 size 设为 None
                     location = {'x': None, 'y': None}
@@ -146,7 +148,7 @@ class web_reader():
         self.driver.quit()
 
     def click(self,id):
-        print(type(id))
+        #print(type(id))
         x,y = (self.current_webpage[id]["position"])
         self.click_position(x,y)
 
@@ -165,13 +167,27 @@ class web_reader():
         window_size = self.driver.get_window_size()
         window_width = window_size['width']
         window_height = window_size['height']
-        print(x,y,window_height,window_width)
+        #print(x,y,window_height,window_width)
         # 检查坐标是否在窗口范围内
         time.sleep(1)
         if x < 0 or x >= window_width or y < 0 or y >= window_height:
             raise ValueError(f"Coordinates ({x}, {y}) are out of bounds for window size ({window_width}, {window_height})")
-        action.move_by_offset(x, y).click().perform()
-        action.send_keys(text).send_keys(Keys.ENTER).perform()
+        try:
+            action.move_by_offset(x, y).click().perform()
+            action.send_keys(text).send_keys(Keys.ENTER).perform()
+        except MoveTargetOutOfBoundsException:
+            # 捕获 MoveTargetOutOfBoundsException 异常
+            print(f"Error: Target position ({x}, {y}) is out of bounds. Please adjust the coordinates or window size.")
+        
+        except WebDriverException as e:
+            # 捕获其他 WebDriver 相关异常
+            print(f"WebDriverException occurred: {str(e)}")
+        
+        finally:
+            # 重置鼠标位置，防止影响后续操作
+            action.move_by_offset(-x, -y).perform()
+            print("Mouse position reset.")
+            
 
 
         pass
@@ -188,11 +204,30 @@ class web_reader():
         # 创建 ActionChains 对象
         action = ActionChains(self.driver)
         # 将鼠标移动到指定坐标并点击
-        action.move_by_offset(x, y).click().perform()
+        try:
+            # 将鼠标移动到指定坐标并点击
+            action.move_by_offset(x, y).click().perform()
+            print(f"Clicked at position ({x}, {y}) successfully.")
+        
+        except MoveTargetOutOfBoundsException:
+            # 捕获 MoveTargetOutOfBoundsException 异常
+            print(f"Error: Target position ({x}, {y}) is out of bounds. Please adjust the coordinates or window size.")
+        
+        except WebDriverException as e:
+            # 捕获其他 WebDriver 相关异常
+            print(f"WebDriverException occurred: {str(e)}")
+        
+        finally:
+            # 重置鼠标位置，防止影响后续操作
+            action.move_by_offset(-x, -y).perform()
+            print("Mouse position reset.")
 
     def jumpto(self, url):
         self.driver.get(url)
-        pass
+        
+
+    def response(text):
+        print("Agent:" + text)
 
 
 
