@@ -48,6 +48,7 @@ Provide step-by-step instructions on how to install the project.
     ```
 3. install necessary package
     ```python
+    pip install -r requirements.txt
     ```
 
 ## <h2><p id = future-modifications>Future Modifications</p></h2>
