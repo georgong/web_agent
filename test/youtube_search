@@ -1,0 +1,8 @@
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+option = webdriver.ChromeOptions()
+option.add_experimental_option("excludeSwitches", ["enable-automation"])
+driver = webdriver.Chrome(options=option)
+driver.execute("get", {'url': 'https://www.youtube.com/'})

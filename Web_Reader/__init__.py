@@ -131,7 +131,7 @@ class web_reader():
                         "href": element_href,
                         "position":(int(location["x"] + size["width"]/2) , int(location["y"] + size["height"]/2))
                     })
-                count +=1
+                    count +=1
                     
             except StaleElementReferenceException:
                 continue
@@ -154,6 +154,8 @@ class web_reader():
 
     def typing(self,id,text):
         x,y = (self.current_webpage[id]["position"])
+        print(self.current_webpage)
+        #print(x,y)
         self.typing_position(x,y,text)
 
     def back(self):
@@ -187,10 +189,7 @@ class web_reader():
             # 重置鼠标位置，防止影响后续操作
             action.move_by_offset(-x, -y).perform()
             print("Mouse position reset.")
-            
 
-
-        pass
 
     def click_position(self, x, y):
         """
