@@ -1,11 +1,10 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
+from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException,InvalidSelectorException
 from selenium.webdriver.common.by import By
 import time
 #from lxml import etree
 from selenium.webdriver.common.action_chains import ActionChains
-from .url_tree import URLHierarchy
 import numpy as np
 #import cv2
 #import pytesseract
@@ -32,33 +31,45 @@ from selenium.common.exceptions import MoveTargetOutOfBoundsException, WebDriver
 #action.move_to_element_with_offset(selenium_element, x_offset, y_offset).click().perform()
 def get_xpath(element):
     """
-    辅助函数，根据 BeautifulSoup 元素生成 XPath。
+    根据 BeautifulSoup 元素生成 XPath，支持处理命名空间和定位复杂 HTML。
     """
     components = []
     for parent in element.parents:
+        # 如果当前节点有命名空间前缀，使用 local-name() 忽略命名空间
+        if ":" in element.name:
+            tag_name = f"*/*[local-name()='{element.name.split(':')[-1]}']"
+        else:
+            tag_name = element.name
+
+        # 处理兄弟节点以确定位置
         siblings = parent.find_all(element.name, recursive=False)
         if len(siblings) == 1:
-            components.append(element.name)
+            components.append(tag_name)
         else:
             position = siblings.index(element) + 1
-            components.append(f"{element.name}[{position}]")
+            components.append(f"{tag_name}[{position}]")
         element = parent
+
+    # 根节点
     components.reverse()
     return '/' + '/'.join(components)
 
 
-class web_reader():
 
-    def __init__(self,init_webset,function_list = []):
+class web_reader():
+    def __init__(self,init_webset,function_list = [],account_setting = None):
         option = webdriver.ChromeOptions()
+        #/Users/gongzhenghao/Library/Application Support/Google/Chrome/Default
+        if account_setting != None:
+            assert isinstance(account_setting,dict),"account_setting must be in the format like {'user-data-dir':path,'--profile-directory':filename}"
+            option.add_argument(f"user-data-dir={account_setting['user-data-dir']}")
+            option.add_argument(f"--profile-directory={account_setting['--profile-directory']}")
         option.add_experimental_option("excludeSwitches", ["enable-automation"])
         self.driver = webdriver.Chrome(options=option)
         self.driver.get(init_webset)
         self.device_pixel_ratio = self.driver.execute_script("return window.devicePixelRatio")
         self.function_list = function_list
-        self.url_tree = URLHierarchy()
         self.current_url = init_webset
-        self.url_tree.set_root(init_webset)
         self.current_webpage = None
         pass
 
@@ -80,7 +91,7 @@ class web_reader():
     def read(self,visualize = False):
         # 配置 Chrome WebDriver
         # 等待设定的加载时间（2 秒）
-        time.sleep(1)
+        time.sleep(2)
         print("reading...")
         self.current_url = self.driver.current_url
         # 获取页面的 HTML 快照
@@ -103,10 +114,36 @@ class web_reader():
                     size = selenium_element.size
                     #print(location)
                     #print(size)
-                except (NoSuchElementException, StaleElementReferenceException):
-                    # 如果定位失败，location 和 size 设为 None
+                # except (NoSuchElementException, StaleElementReferenceException):
+                #     # 如果定位失败，location 和 size 设为 None
+                #     location = {'x': None, 'y': None}
+                #     size = {'width': None, 'height': None}
+                except NoSuchElementException:
+                    print(f"Error: No element found for XPath: {xpath}")
                     location = {'x': None, 'y': None}
                     size = {'width': None, 'height': None}
+                except StaleElementReferenceException:
+                    # 元素已从 DOM 中移除或失效
+                    print(f"Error: Stale reference for XPath: {xpath}")
+                    location = {'x': None, 'y': None}
+                    size = {'width': None, 'height': None}
+                except InvalidSelectorException:
+                    # XPath 表达式无效
+                    print(f"Error: Invalid XPath selector: {xpath}")
+                    location = {'x': None, 'y': None}
+                    size = {'width': None, 'height': None}
+                except WebDriverException as e:
+                    # 捕获其他 Selenium 相关异常
+                    print(f"WebDriver error occurred: {str(e)}")
+                    location = {'x': None, 'y': None}
+                    size = {'width': None, 'height': None}
+                except Exception as e:
+                    # 捕获未知错误
+                    print(f"Unexpected error occurred: {str(e)}")
+                    location = {'x': None, 'y': None}
+                    size = {'width': None, 'height': None}
+                
+
                 aira_label = {attr: value for attr, value in element.attrs.items() if attr.startswith("aria-")}
                 tag_name = element.name
                 element_type = element.get("type")  # 元素的 type 属性，默认 link 对于 <a>
@@ -159,7 +196,32 @@ class web_reader():
         self.typing_position(x,y,text)
 
     def back(self):
-        self.driver.back()
+        try:
+            self.driver.back()
+        except Exception as e:
+            print(e)
+
+    def is_in_viewport(self, x, y):
+        """
+        检查指定坐标是否在可视范围内。
+        """
+        viewport = self.driver.execute_script("""
+            return {
+                top: window.pageYOffset,
+                bottom: window.pageYOffset + window.innerHeight,
+                left: window.pageXOffset,
+                right: window.pageXOffset + window.innerWidth
+            };
+        """)
+        return (viewport["left"] <= x <= viewport["right"]) and (viewport["top"] <= y <= viewport["bottom"])
+
+    def scroll_to_position(self, x, y):
+        """
+        滚动页面到指定位置，使 (x, y) 坐标可见。
+        """
+        # 计算滚动位置
+        scroll_script = f"window.scrollTo({x - 100}, {y - 100});"  # 偏移 100 像素避免边缘问题
+        self.driver.execute_script(scroll_script)
 
         
 
@@ -222,11 +284,21 @@ class web_reader():
             print("Mouse position reset.")
 
     def jumpto(self, url):
-        self.driver.get(url)
+        try:
+            self.driver.get(url)
+        except Exception as e:
+            print(e)
         
 
     def response(text):
         print("Agent:" + text)
+
+    def scrollup(text):
+        pass
+
+
+    def scrolldown(text):
+        pass
 
 
 

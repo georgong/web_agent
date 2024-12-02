@@ -7,10 +7,12 @@ import json
 API_URL = "http://localhost:11434/api/generate"
 
 class ChatApp:
-    def __init__(self, root):
+    def __init__(self, url, model,root):
         self.root = root
         self.root.title("大模型对话系统")
         self.root.geometry("800x400")
+        self.model = model
+        self.url = url
 
         # 创建左侧的 Node Tree Frame
         self.left_frame = tk.Frame(root, bg="#f2f2f2", width=300)
@@ -89,9 +91,10 @@ class ChatApp:
 
     def get_streamed_response(self, user_input):
         final_prompt = user_input
+        llm_output = ""
         try:
-            response = requests.post(API_URL, json={
-                "model": "qwen2.5:3b",
+            response = requests.post(self.url, json={
+                "model": self.model,
                 "prompt": final_prompt,
                 "streaming": True,
                 "options": {
@@ -106,6 +109,7 @@ class ChatApp:
                         res = chunk.decode('utf-8')
                         result = json.loads(res)
                         if not result["done"]:
+                            llm_output= f"{result['response']}"
                             self.update_chat_box(f"{result['response']}")
                         else:
                             self.update_chat_box("\n")
@@ -114,6 +118,7 @@ class ChatApp:
                 self.update_chat_box("Error: Unable to get response from the server.\n")
         except Exception as e:
             self.update_chat_box(f"Error: {str(e)}\n")
+        #return llm_output
 
     def update_chat_box(self, text):
         self.chat_box.config(state=tk.NORMAL)
@@ -124,6 +129,6 @@ class ChatApp:
 
 # 创建主窗口
 root = tk.Tk()
-app = ChatApp(root)
+app = ChatApp(API_URL,"qwen2.5:3b",root)
 root.mainloop()
 

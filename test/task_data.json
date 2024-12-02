@@ -1,0 +1,72 @@
+{
+    "tasks": [
+        {
+            "initial_webpage": "https://www.google.com",
+            "task": "Find a pasta recipe",
+            "function_list": [
+                "typing(8, 'pasta recipe')",
+                "click(56)",
+                "read()",
+                "back()",
+                "click(58)",
+                "click(72)",
+                "read()"
+            ],
+            "final_webpage": "https://www.101cookbooks.com/homemade-pasta/#recipe"
+        },
+        {
+            "initial_webpage": "https://www.google.com",
+            "task": "Find a desk in Ikea",
+            "function_list": [
+                "jumpto('https://www.ikea.com/')",
+                "click(238)",
+                "click(180)",
+                "click(46)",
+                "click(87)",
+                "click(42)",
+                "click(44)"
+            ],
+            "final_webpage": "https://www.ikea.com/us/en/cat/standing-desks-55008/"
+        },
+        {
+            "initial_webpage": "https://www.google.com",
+            "task": "Check out Chongqing in China",
+            "function_list": [
+                "typing(8, 'chongqing')",
+                "read()",
+                "click(13)",
+                "click(27)",
+                "click(110)"
+            ],
+            "final_webpage": "https://www.youtube.com/watch?v=tMzCwwvHwN0"
+        },
+        {
+            "initial_webpage": "https://www.google.com",
+            "task": "Find a stuffing recipe",
+            "function_list": [
+                "typing(8, 'stuffing recipe')",
+                "click(14)",
+                "click(100)",
+                "back()",
+                "click(102)",
+                "back()",
+                "back()",
+                "click(22)",
+                "click(52)",
+                "read()"
+            ],
+            "final_webpage": "https://www.howsweeteats.com/2020/11/best-stuffing-recipe/"
+        },
+        {
+            "initial_webpage": "https://www.google.com",
+            "task": "Find MacBook Air M2 review",
+            "function_list": [
+                "typing(8, 'MacBook Air M2 reviews')",
+                "click(16)",
+                "click(48)",
+                "read()"
+            ],
+            "final_webpage": "https://reddit.com/r/hardware/comments/w75hjz/notebookcheck_apple_macbook_air_m2_entry_review_a/?rdt=56886"
+        }
+    ]
+}

@@ -12,7 +12,7 @@ class BaseLLM():
     def __init__(self,url = "http://localhost:11434/api/generate",model = "qwen2.5:3b"):
         self.url = url
         self.model = model
-        self.web_reader = web_reader("https://www.youtube.com")
+        self.web_reader = web_reader("https://www.google.com")
         self.basic_prompt = reader_prompt
         self.controller = controller({"click":"",
                                       "typing":"",
