@@ -124,7 +124,7 @@ class controller():
         """
         THis is the function to select strategy
         """
-        return []
+        return ["reasoning"]
     
     def generate_output(self,total_prompt):
         response = requests.post(self.llm_url, json={
@@ -147,7 +147,7 @@ class controller():
 
         
 if __name__ == "__main__":
-    model = "qwen2.5:3b"
+    model = "arcee-ai/arcee-agent"
     llm_url = "http://localhost:11434/api/generate"
     c = controller(llm_url,model)
-    c.query("open gmail","http://google.com")
+    c.query("search and open ucsd","http://google.com")

@@ -59,6 +59,8 @@ def generate_elements_prompt(interactive_elements):
         #check if there is aria-label
         if "aria-label" in elements_dict["aria_label"]:
             record["innertext"] = elements_dict["aria_label"]["aria-label"]
+        if elements_dict["role"] != None:
+            record["role"] = elements_dict["role"]
         
             
         if len(record) > 1:

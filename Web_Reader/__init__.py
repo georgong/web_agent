@@ -148,6 +148,7 @@ class web_reader():
                 tag_name = element.name
                 element_type = element.get("type")  # 元素的 type 属性，默认 link 对于 <a>
                 alt_label = element.get("alt")  # 从 aria-label 或 alt 中获取 label
+                element_role = element.get("role")
                 element_text = element.get_text(strip=True) if tag_name != "img" else ""  # 获取非图片元素的内部文字
                 element_href = element.get("href") if tag_name == "a" else None  # 如果是超链接，获取 href 属性
                 # 判断是否为可交互元素或超链接、图片
@@ -163,6 +164,7 @@ class web_reader():
                         "tag_name": tag_name,
                         "type": element_type,
                         "alt_label": alt_label,
+                        "role":element_role,
                         "aria_label":aira_label,
                         "text": element_text,
                         "href": element_href,
