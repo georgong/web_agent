@@ -25,12 +25,11 @@ reader_prompt = """
         {function_list}\
         ```
         You can only call one function in each response step by step, and remember to wrapper it with <function_calls>.\
-        Now Please complete or answer the user's request: {task} {insert_place2}\n\
-        for the total task, Your current subtask is: {subtask}\n\
         Since each time you can only call one function, you should think of what the next subtask you need to do, \
-        the next subtask is a text content describe roughly what the next step instead of a function.
-        if you think you alreay complete the task, output 'done' in the subtask.
+        the next subtask is a text content describe roughly what the next step after this function be called.
         your output should be 1.one_function_call:... 2.next_subtask:...
+        Now Please complete or answer the user's request: {task} {insert_place2}\n\
+        for the total task, your current subtask is: {subtask}\n\
         """
 
 
@@ -78,9 +77,9 @@ for the action you choose, you need to given the reason why you use this action.
 """
 
 summary_prompt = """
-System: You are an intelligence robot aims for analyzing the web_contents and text, then summary what the page content is.
+System: You are an intelligence robot aims for analyzing the web_contents and text, then summary what the page content is. roughly 30 word
 {web_content}{text}, 
-Agents: the summary content is:
+Agents: Based on the web_content, you are now in a page in which:
 """
 
 
@@ -178,7 +177,11 @@ function_data = {
     "click": [{"id": "integer"}, "Click on the elements with specific id"],
     "typing": [{"id": "integer", "text": "string"}, "Click on the elements and then type on the elements with the input text"],
     "back": [None, "Get back to the previous page"],
-    "response": [{"text": "string"}, "The word you give back to user, report what you have done or answer the user's QA question"]
+    "response": [{"text": "string"}, "The word you give back to user, report what you have done or answer the user's QA question"],
+    "done": [None,"the task is already complete, end the task"]
 }
 #"jumpto": [{"url": "string"}, "Jump to a new URL in the web page"],
 
+
+
+external_instruction = ["for search somethings start from google.com, you need to typing on the elements with innertext 'search', and then analyze or click in the search result"]

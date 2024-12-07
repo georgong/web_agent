@@ -15,6 +15,9 @@ import numpy as np
 #from .annotation import image_read,annotate_text_centers
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import MoveTargetOutOfBoundsException, WebDriverException
+import pyttsx3
+import re
+from translate import Translator
 
 
 # 假设已经找到需要点击的元素
@@ -71,6 +74,9 @@ class web_reader():
         self.function_list = function_list
         self.current_url = init_webset
         self.current_webpage = None
+        self.engine = pyttsx3.init()
+        voices = self.engine.getProperty('voices') 
+        self.engine.setProperty('voice', voices[1].id) 
         pass
 
     def annotation(self,visualize = True):
@@ -86,22 +92,32 @@ class web_reader():
         #    return textbox, annotate_text_centers(cv2_image,text_boxes=textbox,debug=False)
         #return textbox
 
-
-    
-    def read(self,visualize = False):
-        # 配置 Chrome WebDriver
+    def read(self, visualize=False):
         # 等待设定的加载时间（2 秒）
-        time.sleep(2)
+        time.sleep(1)
         print("reading...")
         self.current_url = self.driver.current_url
+
         # 获取页面的 HTML 快照
         page_source = self.driver.page_source
-        annotations = None#self.annotation(visualize)
+        annotations = None  # self.annotation(visualize)
+
         # 使用 BeautifulSoup 解析 HTML
         soup = BeautifulSoup(page_source, "html.parser")
-        # 查找所有可交互元素，包括超链接和带有 alt 属性的图像
+
+        # 获取页面的宽度和高度
+        viewport = self.driver.execute_script("""
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        """)
+        page_width = viewport["width"] * 1.4  # 宽度范围限制为 1.4 倍
+        page_height = viewport["height"]  # 高度限制（可调整）
+
         interactive_elements = []
         count = 0
+
         for element in soup.find_all(["button", "input", "a", "textarea", "select", "img"]):
             try:
                 # 获取元素的基本属性
@@ -112,74 +128,157 @@ class web_reader():
                     selenium_element = self.driver.find_element(By.XPATH, xpath)
                     location = selenium_element.location
                     size = selenium_element.size
-                    #print(location)
-                    #print(size)
-                # except (NoSuchElementException, StaleElementReferenceException):
-                #     # 如果定位失败，location 和 size 设为 None
-                #     location = {'x': None, 'y': None}
-                #     size = {'width': None, 'height': None}
                 except NoSuchElementException:
-                    print(f"Error: No element found for XPath: {xpath}")
-                    location = {'x': None, 'y': None}
-                    size = {'width': None, 'height': None}
+                    print(f"No element found for XPath: {xpath}")
+                    continue
                 except StaleElementReferenceException:
-                    # 元素已从 DOM 中移除或失效
-                    print(f"Error: Stale reference for XPath: {xpath}")
-                    location = {'x': None, 'y': None}
-                    size = {'width': None, 'height': None}
+                    print(f"Stale reference for XPath: {xpath}")
+                    continue
                 except InvalidSelectorException:
-                    # XPath 表达式无效
-                    print(f"Error: Invalid XPath selector: {xpath}")
-                    location = {'x': None, 'y': None}
-                    size = {'width': None, 'height': None}
+                    print(f"Invalid XPath selector: {xpath}")
+                    continue
                 except WebDriverException as e:
-                    # 捕获其他 Selenium 相关异常
                     print(f"WebDriver error occurred: {str(e)}")
-                    location = {'x': None, 'y': None}
-                    size = {'width': None, 'height': None}
+                    continue
                 except Exception as e:
-                    # 捕获未知错误
                     print(f"Unexpected error occurred: {str(e)}")
-                    location = {'x': None, 'y': None}
-                    size = {'width': None, 'height': None}
-                
+                    continue
 
+                # 获取元素的中心位置
+                center_x = location["x"] + size["width"] / 2
+                center_y = location["y"] + size["height"] / 2
+
+                # 判断是否超出页面范围
+                if center_x < 0 or center_x > page_width or center_y < 0 or center_y > page_height:
+                    continue
+
+                # 获取元素的其他属性
                 aira_label = {attr: value for attr, value in element.attrs.items() if attr.startswith("aria-")}
                 tag_name = element.name
-                element_type = element.get("type")  # 元素的 type 属性，默认 link 对于 <a>
-                alt_label = element.get("alt")  # 从 aria-label 或 alt 中获取 label
+                element_type = element.get("type")
                 element_role = element.get("role")
-                element_text = element.get_text(strip=True) if tag_name != "img" else ""  # 获取非图片元素的内部文字
-                element_href = element.get("href") if tag_name == "a" else None  # 如果是超链接，获取 href 属性
-                # 判断是否为可交互元素或超链接、图片
+                alt_label = element.get("alt")
+                element_text = element.get_text(strip=True) if tag_name != "img" else ""
+                element_href = element.get("href") if tag_name == "a" else None
+
+                # 判断是否为交互元素
                 if (tag_name in ["button", "textarea", "select", "img"] or 
-                (tag_name == "input" and element_type in ["text", "password", "checkbox", "radio", "submit", "button"]) or
-                (tag_name == "a" and element_href)) or alt_label or aira_label:
-                    if location["x"] == None or location["y"] == None or size["width"] == None or size["height"] == None:
-                         continue;
-                
-                # 将元素添加到 interactive_elements 列表，包含 tag_name, element_type, label, element_text, element_href
+                    (tag_name == "input" and element_type in ["text", "password", "checkbox", "radio", "submit", "button"]) or
+                    (tag_name == "a" and element_href)) or alt_label or aira_label:
                     interactive_elements.append({
-                        "id":element_id,
+                        "id": element_id,
                         "tag_name": tag_name,
                         "type": element_type,
-                        "alt_label": alt_label,
                         "role":element_role,
-                        "aria_label":aira_label,
+                        "alt_label": alt_label,
+                        "aria_label": aira_label,
                         "text": element_text,
                         "href": element_href,
-                        "position":(int(location["x"] + size["width"]/2) , int(location["y"] + size["height"]/2))
+                        "position": (int(center_x), int(center_y))
                     })
-                    count +=1
-                    
+                    count += 1
+
             except StaleElementReferenceException:
                 continue
-        
+
         full_page_text = soup.get_text(separator=" ", strip=True)
-        #if visualize:
         self.current_webpage = interactive_elements
-        return interactive_elements, annotations,full_page_text
-        #return interactive_elements,full_page_text
+        return interactive_elements, annotations, full_page_text
+
+
+    
+    # def read(self,visualize = False):
+    #     # 配置 Chrome WebDriver
+    #     # 等待设定的加载时间（2 秒）
+    #     time.sleep(2)
+    #     print("reading...")
+    #     self.current_url = self.driver.current_url
+    #     # 获取页面的 HTML 快照
+    #     page_source = self.driver.page_source
+    #     annotations = None#self.annotation(visualize)
+    #     # 使用 BeautifulSoup 解析 HTML
+    #     soup = BeautifulSoup(page_source, "html.parser")
+    #     # 查找所有可交互元素，包括超链接和带有 alt 属性的图像
+    #     interactive_elements = []
+    #     count = 0
+    #     for element in soup.find_all(["button", "input", "a", "textarea", "select", "img"]):
+    #         try:
+    #             # 获取元素的基本属性
+    #             element_id = count
+    #             xpath = get_xpath(element)
+    #             try:
+    #                 # 使用 Selenium 定位元素
+    #                 selenium_element = self.driver.find_element(By.XPATH, xpath)
+    #                 location = selenium_element.location
+    #                 size = selenium_element.size
+    #                 #print(location)
+    #                 #print(size)
+    #             # except (NoSuchElementException, StaleElementReferenceException):
+    #             #     # 如果定位失败，location 和 size 设为 None
+    #             #     location = {'x': None, 'y': None}
+    #             #     size = {'width': None, 'height': None}
+    #             except NoSuchElementException:
+    #                 print(f"Error: No element found for XPath: {xpath}")
+    #                 location = {'x': None, 'y': None}
+    #                 size = {'width': None, 'height': None}
+    #             except StaleElementReferenceException:
+    #                 # 元素已从 DOM 中移除或失效
+    #                 print(f"Error: Stale reference for XPath: {xpath}")
+    #                 location = {'x': None, 'y': None}
+    #                 size = {'width': None, 'height': None}
+    #             except InvalidSelectorException:
+    #                 # XPath 表达式无效
+    #                 print(f"Error: Invalid XPath selector: {xpath}")
+    #                 location = {'x': None, 'y': None}
+    #                 size = {'width': None, 'height': None}
+    #             except WebDriverException as e:
+    #                 # 捕获其他 Selenium 相关异常
+    #                 print(f"WebDriver error occurred: {str(e)}")
+    #                 location = {'x': None, 'y': None}
+    #                 size = {'width': None, 'height': None}
+    #             except Exception as e:
+    #                 # 捕获未知错误
+    #                 print(f"Unexpected error occurred: {str(e)}")
+    #                 location = {'x': None, 'y': None}
+    #                 size = {'width': None, 'height': None}
+                
+
+    #             aira_label = {attr: value for attr, value in element.attrs.items() if attr.startswith("aria-")}
+    #             tag_name = element.name
+    #             element_type = element.get("type")  # 元素的 type 属性，默认 link 对于 <a>
+    #             alt_label = element.get("alt")  # 从 aria-label 或 alt 中获取 label
+    #             element_role = element.get("role")
+    #             element_text = element.get_text(strip=True) if tag_name != "img" else ""  # 获取非图片元素的内部文字
+    #             element_href = element.get("href") if tag_name == "a" else None  # 如果是超链接，获取 href 属性
+    #             # 判断是否为可交互元素或超链接、图片
+    #             if (tag_name in ["button", "textarea", "select", "img"] or 
+    #             (tag_name == "input" and element_type in ["text", "password", "checkbox", "radio", "submit", "button"]) or
+    #             (tag_name == "a" and element_href)) or alt_label or aira_label:
+    #                 if location["x"] == None or location["y"] == None or size["width"] == None or size["height"] == None:
+    #                      continue;
+                
+    #             # 将元素添加到 interactive_elements 列表，包含 tag_name, element_type, label, element_text, element_href
+    #                 interactive_elements.append({
+    #                     "id":element_id,
+    #                     "tag_name": tag_name,
+    #                     "type": element_type,
+    #                     "alt_label": alt_label,
+    #                     "role":element_role,
+    #                     "aria_label":aira_label,
+    #                     "text": element_text,
+    #                     "href": element_href,
+    #                     "position":(int(location["x"] + size["width"]/2) , int(location["y"] + size["height"]/2))
+    #                 })
+    #                 count +=1
+                    
+    #         except StaleElementReferenceException:
+    #             continue
+        
+    #     full_page_text = soup.get_text(separator=" ", strip=True)
+    #     #if visualize:
+    #     self.current_webpage = interactive_elements
+    #     return interactive_elements, annotations,full_page_text
+    #     #return interactive_elements,full_page_text
     
     def close(self):
     # 保持页面打开以便查看效果
@@ -189,10 +288,15 @@ class web_reader():
     def click(self,id):
         #print(type(id))
         x,y = (self.current_webpage[id]["position"])
-        self.click_position(x,y)
+        print("interact with:",str(self.current_webpage[id]))
+        if "herf" in self.current_webpage[id]:
+            self.jumpto(self.current_webpage[id]["herf"])
+        else:
+            self.click_position(x,y)
 
     def typing(self,id,text):
         x,y = (self.current_webpage[id]["position"])
+        print("interact with:",str(self.current_webpage[id]))
         print(self.current_webpage)
         #print(x,y)
         self.typing_position(x,y,text)
@@ -239,7 +343,8 @@ class web_reader():
         if x < 0 or x >= window_width or y < 0 or y >= window_height:
             raise ValueError(f"Coordinates ({x}, {y}) are out of bounds for window size ({window_width}, {window_height})")
         try:
-            action.move_by_offset(x, y).click().perform()
+            #action.send_keys(text)
+            #action.move_by_offset(x, y).click().perform()
             action.send_keys(text).send_keys(Keys.ENTER).perform()
         except MoveTargetOutOfBoundsException:
             # 捕获 MoveTargetOutOfBoundsException 异常
@@ -290,17 +395,27 @@ class web_reader():
             self.driver.get(url)
         except Exception as e:
             print(e)
+
+    def contains_chinese(self,text):
+        """检查字符串中是否包含中文字符"""
+        pattern = re.compile(r'[\u4e00-\u9fff]')
+        return bool(pattern.search(text))
+
+    def translate_text(self,text, to_lang="en"):
+        """翻译文本"""
+        translator = Translator(to_lang=to_lang)
+        translation = translator.translate(text)
+        return translation
         
 
-    def response(text):
+    def response(self,text):
+        text = str(text)
+        if self.contains_chinese(text):
+            text = self.translate_text(text)
+        self.engine.say(text)
+        self.engine.runAndWait()
         print("Agent:" + text)
 
-    def scrollup(text):
-        pass
-
-
-    def scrolldown(text):
-        pass
 
 
 
